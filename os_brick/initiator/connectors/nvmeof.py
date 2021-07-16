@@ -435,6 +435,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
         """
 
         volume_replicas = connection_properties.get('volume_replicas')
+        replica_count = connection_properties.get('replica_count')
         volume_alias = connection_properties.get('alias')
 
         if volume_replicas:
@@ -453,9 +454,9 @@ class NVMeOFConnector(base.BaseLinuxConnector):
                 raise exception.VolumeDeviceNotFound(
                     device=volume_replicas)
 
-            if len(volume_replicas) > 1:
+            if replica_count > 1:
                 device_path = self._handle_replicated_volume(
-                    host_device_paths, volume_alias, len(volume_replicas))
+                    host_device_paths, volume_alias, replica_count)
             else:
                 device_path = self._handle_single_replica(
                     host_device_paths, volume_alias)
@@ -585,19 +586,20 @@ class NVMeOFConnector(base.BaseLinuxConnector):
     @utils.retry(exceptions=exception.VolumeDeviceNotFound)
     def get_nvme_device_path(executor, target_nqn, vol_uuid):
         nvme_ctrl = NVMeOFConnector._get_nvme_controller(executor, target_nqn)
-        try:
-            blocks = glob.glob(
-                '/sys/class/nvme-fabrics/ctl/' + nvme_ctrl +
-                '/' + nvme_ctrl + 'n*')
-            for block in blocks:
-                uuid_lines, _err = executor._execute(
-                    'cat', block + '/uuid', run_as_root=True,
-                    root_helper=executor._root_helper)
-                if uuid_lines.split('\n')[0] == vol_uuid:
-                    return '/dev/' + block[block.rfind('/') + 1:]
-        except putils.ProcessExecutionError as e:
-            LOG.exception(e)
-
+        blocks = glob.glob(
+            '/sys/class/block/' + nvme_ctrl + 'n*')
+        for block in blocks:
+            uuid_path = block + '/uuid'
+            try:
+                exists = os.path.exists(uuid_path)
+                if exists:
+                    uuid_lines, _err = executor._execute(
+                        'cat', uuid_path , run_as_root=True,
+                        root_helper=executor._root_helper)
+                    if uuid_lines.split('\n')[0] == vol_uuid:
+                        return '/dev/' + block[block.rfind('/') + 1:]
+            except putils.ProcessExecutionError as e:
+                LOG.exception(e)
         raise exception.VolumeDeviceNotFound(device=vol_uuid)
 
     def _handle_replicated_volume(self, host_device_paths,
