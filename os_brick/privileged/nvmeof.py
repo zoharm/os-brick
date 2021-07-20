@@ -64,3 +64,17 @@ def create_hostnqn():
         LOG.warning("Could not generate host nqn: %s" % str(e))
 
     return host_nqn
+
+
+@os_brick.privileged.default.entrypoint
+def get_host_uuid():
+    try:
+        lines, _err = rootwrap.custom_execute(
+            'findmnt', '/', '-n', '-o', 'SOURCE')
+        lines, _err = rootwrap.custom_execute(
+            'blkid', lines.split('\n')[0], '-s', 'UUID', '-o', 'value')
+        return lines.split('\n')[0]
+    except putils.ProcessExecutionError as e:
+        LOG.warning(
+            "Could not get host uuid: %s" % str(e))
+    return None
