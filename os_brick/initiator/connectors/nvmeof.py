@@ -59,13 +59,14 @@ class NVMeOFConnector(base.BaseLinuxConnector):
         if device_path:
             return [device_path]
         volume_replicas = connection_properties.get('volume_replicas')
+        replica_count = connection_properties.get('replica_count')
         if not volume_replicas:  # compatibility
             return []
 
         try:
-            if volume_replicas and len(volume_replicas) > 1:
+            if volume_replicas and replica_count > 1:
                 return ['/dev/md/' + connection_properties.get('alias')]
-            if volume_replicas and len(volume_replicas) == 1:
+            if volume_replicas and replica_count == 1:
                 return [NVMeOFConnector.get_nvme_device_path(
                     volume_replicas[0]['target_nqn'],
                     volume_replicas[0]['vol_uuid'])]
@@ -405,6 +406,10 @@ class NVMeOFConnector(base.BaseLinuxConnector):
                         {'props': connection_properties})
             raise exception.VolumePathsNotFound()
 
+    #
+    # "Replicated+" NVMeOF Connector methods below
+    #
+
     @utils.trace
     def _connect_volume_replicated(self, connection_properties):
         """connect to volume on host
@@ -517,6 +522,42 @@ class NVMeOFConnector(base.BaseLinuxConnector):
 
         return host_device_path
 
+    def _handle_replicated_volume(self, host_device_paths,
+                                  volume_alias, num_of_replicas):
+        path_in_raid = False
+        for dev_path in host_device_paths:
+            path_in_raid = NVMeOFConnector._is_device_in_raid(dev_path)
+            if path_in_raid:
+                break
+        device_path = '/dev/md/' + volume_alias
+        if path_in_raid:
+            NVMeOFConnector.stop_and_assemble_raid(
+                host_device_paths, device_path, False)
+        else:
+            paths_found = len(host_device_paths)
+            if num_of_replicas > paths_found:
+                LOG.error(
+                    'Cannot create MD as %s out of %s legs were found.',
+                    paths_found, num_of_replicas)
+                raise exception.VolumeDeviceNotFound(device=volume_alias)
+            NVMeOFConnector.create_raid(host_device_paths, '1',
+                                        volume_alias, volume_alias, False)
+
+        return device_path
+
+    def _handle_single_replica(self, host_device_paths, volume_alias):
+        if (NVMeOFConnector._get_fs_type(host_device_paths[0])
+                == 'linux_raid_member'):
+            md_path = '/dev/md/' + volume_alias
+            NVMeOFConnector.stop_and_assemble_raid(
+                host_device_paths, md_path, False)
+            return md_path
+        return host_device_paths[0]
+
+    #
+    # Static methods below are also used by NVMeOF-Agent
+    #
+
     @staticmethod
     def connect_to_portals(target_nqn, target_portals):
         """connect to any of NVMe-oF target portals"""
@@ -577,38 +618,6 @@ class NVMeOFConnector(base.BaseLinuxConnector):
             except putils.ProcessExecutionError as e:
                 LOG.exception(e)
         raise exception.VolumeDeviceNotFound(device=vol_uuid)
-
-    def _handle_replicated_volume(self, host_device_paths,
-                                  volume_alias, num_of_replicas):
-        path_in_raid = False
-        for dev_path in host_device_paths:
-            path_in_raid = NVMeOFConnector._is_device_in_raid(dev_path)
-            if path_in_raid:
-                break
-        device_path = '/dev/md/' + volume_alias
-        if path_in_raid:
-            NVMeOFConnector.stop_and_assemble_raid(
-                host_device_paths, device_path, False)
-        else:
-            paths_found = len(host_device_paths)
-            if num_of_replicas > paths_found:
-                LOG.error(
-                    'Cannot create MD as %s out of %s legs were found.',
-                    paths_found, num_of_replicas)
-                raise exception.VolumeDeviceNotFound(device=volume_alias)
-            NVMeOFConnector.create_raid(host_device_paths, '1',
-                                        volume_alias, volume_alias, False)
-
-        return device_path
-
-    def _handle_single_replica(self, host_device_paths, volume_alias):
-        if (NVMeOFConnector._get_fs_type(host_device_paths[0])
-                == 'linux_raid_member'):
-            md_path = '/dev/md/' + volume_alias
-            NVMeOFConnector.stop_and_assemble_raid(
-                host_device_paths, md_path, False)
-            return md_path
-        return host_device_paths[0]
 
     @staticmethod
     def run_mdadm(cmd, raise_exception=False):

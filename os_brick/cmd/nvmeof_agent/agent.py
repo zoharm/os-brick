@@ -14,6 +14,7 @@ import glob
 import os
 import sched
 import socket
+import sys
 import time
 import traceback
 
@@ -41,7 +42,6 @@ REPLICA_MISSING = 'Missing'
 REPLICA_UNKNOWN = 'Unknown'
 REPLICA_SYNCING = 'Synchronizing'
 BACKEND_AVAILABLE = 'Available'
-PROV_CONF_FILE = '/etc/kioxia/provisioner.conf'
 
 synchronized = lockutils.synchronized_with_prefix('os-brick-')
 
@@ -56,23 +56,11 @@ class NVMeOFAgent:
         self.prov_rest = None
 
     def init(self):
-        if os.path.isfile(PROV_CONF_FILE):
-            import imp
-            f = open(PROV_CONF_FILE)
-            prov_data = imp.load_source('prov_data', '', f)
-            f.close()
-            prov_ip = prov_data.prov_ip
-            prov_port = prov_data.prov_port
-            token = prov_data.token
-            cert_file = prov_data.cert_file
-            self.prov_rest = provisioner_rest_client.KioxiaProvisioner(
-                [prov_ip], cert_file, token, prov_port)
+        self.prov_rest = provisioner_rest_client.KioxiaProvisioner(
+            [CONF.prov_ip], CONF.cert_file, CONF.token, CONF.prov_port)
 
-            scheduler.enter(1, 1, self.call_host_monitor, (30,))
-            scheduler.run()
-        else:
-            LOG.warning("%s is not exists! - "
-                        "abort NVMeOFAgent launch", PROV_CONF_FILE)
+        scheduler.enter(1, 1, self.call_host_monitor, (30,))
+        scheduler.run()
 
     def call_host_monitor(self, interval):
         self.monitor_host()
@@ -1358,6 +1346,12 @@ class NVMeOFAgent:
 def main():
     logging.register_options(CONF)
     logging.setup(CONF, "nvmeof_agent")
+    CONF.register_opts([
+        cfg.StrOpt('prov_ip'),
+        cfg.IntOpt('prov_port'),
+        cfg.StrOpt('cert_file'),
+        cfg.StrOpt('token')])
+    CONF(sys.argv[1:])
     agent_instance = NVMeOFAgent()
     LOG.info("Initializing NVMeOF Agent")
     agent_instance.init()
