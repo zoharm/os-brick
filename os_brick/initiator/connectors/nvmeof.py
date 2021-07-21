@@ -478,7 +478,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
 
         if volume_replicas and len(volume_replicas) > 1:
             device_path = '/dev/md/' + connection_properties['alias']
-            NVMeOFConnector.run_mdadm(
+            priv_nvme.run_mdadm(
                 ['mdadm', '--grow', '--size', 'max', device_path])
         else:
             if not volume_replicas:
@@ -620,25 +620,12 @@ class NVMeOFConnector(base.BaseLinuxConnector):
         raise exception.VolumeDeviceNotFound(device=vol_uuid)
 
     @staticmethod
-    def run_mdadm(cmd, raise_exception=False):
-        cmd_output = None
-        try:
-            lines, err = priv_rootwrap.custom_execute(*cmd)
-            for line in lines.split('\n'):
-                cmd_output = line
-                break
-        except putils.ProcessExecutionError as ex:
-            LOG.warning("[!] Could not run mdadm: %s", str(ex))
-            if raise_exception:
-                raise ex
-        return cmd_output
-
-    @staticmethod
     def _is_device_in_raid(device_path):
         cmd = ['mdadm', '--examine', device_path]
         raid_expected = device_path + ':'
+
         try:
-            lines, err = priv_rootwrap.custom_execute(*cmd)
+            lines, err = priv_nvme.run_mdadm(cmd)
             for line in lines.split('\n'):
                 if line == raid_expected:
                     return True
@@ -719,7 +706,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
             cmd.append(drives[i])
 
         try:
-            NVMeOFConnector.run_mdadm(cmd, True)
+            priv_nvme.run_mdadm(cmd, True)
         except putils.ProcessExecutionError as ex:
             LOG.warning("[!] Could not _assemble_raid: %s", str(ex))
             raise ex
@@ -754,7 +741,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
             cmd.append(drives[i])
 
         LOG.debug('[!] cmd = ' + str(cmd))
-        NVMeOFConnector.run_mdadm(cmd)
+        priv_nvme.run_mdadm(cmd)
 
     @staticmethod
     def end_raid(device_path):
@@ -782,8 +769,8 @@ class NVMeOFConnector(base.BaseLinuxConnector):
     def stop_raid(md_path):
         cmd = ['mdadm', '--stop', md_path]
         LOG.debug("[!] cmd = " + str(cmd))
-        cmd_out = NVMeOFConnector.run_mdadm(cmd)
-        return cmd_out
+        lines, err = priv_nvme.run_mdadm(cmd)
+        return lines.split('\n')[0]
 
     @staticmethod
     def is_raid_exists(device_path):
@@ -791,7 +778,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
         LOG.debug("[!] cmd = " + str(cmd))
         raid_expected = device_path + ':'
         try:
-            lines, err = priv_rootwrap.custom_execute(*cmd)
+            lines, err = priv_nvme.run_mdadm(cmd)
 
             for line in lines.split('\n'):
                 LOG.debug("[!] line = " + line)
@@ -806,7 +793,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
     def remove_raid(device_path):
         cmd = ['mdadm', '--remove', device_path]
         LOG.debug("[!] cmd = " + str(cmd))
-        NVMeOFConnector.run_mdadm(cmd)
+        priv_nvme.run_mdadm(cmd)
 
     @staticmethod
     def rescan(target_nqn, vol_uuid):

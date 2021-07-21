@@ -87,3 +87,13 @@ def run_nvme_cli(nvme_command):
     LOG.debug("nvme %(nvme_command)s: stdout=%(out)s stderr=%(err)s" %
               {'nvme_command': nvme_command, 'out': out, 'err': err})
     return out, err
+
+
+@os_brick.privileged.default.entrypoint
+def run_mdadm(cmd, raise_exception=False):
+    try:
+        return rootwrap.custom_execute(*cmd)
+    except putils.ProcessExecutionError as ex:
+        LOG.warning("Could not run mdadm: %s - %s", str(cmd), str(ex))
+        if raise_exception:
+            raise ex

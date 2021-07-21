@@ -131,7 +131,7 @@ class NVMeOFAgent:
             cmd = ['mdadm', '/dev/md/' + md_name, '--add', '--failfast',
                    nvme_device]
             LOG.debug("[!] cmd: %s", str(cmd))
-            cmd_out = nvmeof.NVMeOFConnector.run_mdadm(cmd, True)
+            cmd_out = self._run_mdadm_one_line_out(cmd, True)
             LOG.debug("[!] cmd: %s cmd_out: %s", str(cmd), cmd_out)
         except Exception:
             return False
@@ -145,13 +145,13 @@ class NVMeOFAgent:
                 cmd = ['mdadm', '--manage', '/dev/md/' + md_name, '--fail',
                        nvme_device]
                 LOG.debug("[!] cmd: %s", str(cmd))
-                cmd_out = nvmeof.NVMeOFConnector.run_mdadm(cmd)
+                cmd_out = self._run_mdadm_one_line_out(cmd)
                 LOG.debug("[!] cmd: %s cmd_out: %s", str(cmd), cmd_out)
 
             cmd2 = ['mdadm', '--manage', '/dev/md/' + md_name, '--remove',
                     nvme_device]
             LOG.debug("[!] cmd2: %s", str(cmd2))
-            cmd_out = nvmeof.NVMeOFConnector.run_mdadm(cmd2)
+            cmd_out = self._run_mdadm_one_line_out(cmd2)
             LOG.debug("[!] cmd: %s cmd_out: %s", str(cmd2), cmd_out)
         except Exception as ex:
             LOG.error("[!] remove_device_from_md exception: %s", str(ex))
@@ -164,7 +164,7 @@ class NVMeOFAgent:
         try:
             cmd = ['mdadm', '--manage', '/dev/md/' + md_name, '--fail',
                    nvme_device]
-            cmd_out = nvmeof.NVMeOFConnector.run_mdadm(cmd)
+            cmd_out = self._run_mdadm_one_line_out(cmd)
             LOG.debug("cmd: %s cmd_out: %s", str(cmd), cmd_out)
         except Exception:
             return False
@@ -180,12 +180,20 @@ class NVMeOFAgent:
             if device_count == 1:
                 cmd.append('--force')
             LOG.debug("[!] cmd: %s", cmd)
-            cmd_out = nvmeof.NVMeOFConnector.run_mdadm(cmd)
+            cmd_out = self._run_mdadm_one_line_out(cmd)
             LOG.debug("[!] cmd: %s , cmd_out: %s", str(cmd), cmd_out)
         except Exception:
             return False
 
         return True
+
+    def _run_mdadm_one_line_out(self, cmd, raise_ex=False):
+        lines = ''
+        if raise_ex:
+            lines, err = priv_nvme.run_mdadm(cmd, True)
+        else:
+            lines, err = priv_nvme.run_mdadm(cmd)
+        return lines.split('/')[0]
 
     def get_volume_by_uuid(self, vol_uuid):
         ks_volume = None
