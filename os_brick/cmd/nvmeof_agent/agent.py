@@ -1290,7 +1290,7 @@ class NVMeOFAgent:
         LOG.debug("[!] target_nqn = %s", target_nqn)
         nvme_command = ('disconnect', '-n', target_nqn)
         try:
-            nvmeof.NVMeOFConnector.run_nvme_cli(nvme_command)
+            priv_nvme.run_nvme_cli(nvme_command)
         except Exception:
             LOG.warning("Could not disconnect target_nqn %s", target_nqn)
 

@@ -573,7 +573,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
                 'connect', '-a', portal_address, '-s', portal_port, '-t',
                 portal_transport, '-n', target_nqn, '-Q', '128', '-l', '-1')
             try:
-                NVMeOFConnector.run_nvme_cli(nvme_command)
+                priv_nvme.run_nvme_cli(nvme_command)
                 any_connect = True
                 break
             except Exception:
@@ -809,23 +809,13 @@ class NVMeOFConnector(base.BaseLinuxConnector):
         NVMeOFConnector.run_mdadm(cmd)
 
     @staticmethod
-    def run_nvme_cli(nvme_command, **kwargs):
-        (out, err) = priv_rootwrap.custom_execute(
-            'nvme', *nvme_command, check_exit_code=True)
-        msg = ("nvme %(nvme_command)s: stdout=%(out)s stderr=%(err)s" %
-               {'nvme_command': nvme_command, 'out': out, 'err': err})
-        LOG.debug("[!] " + msg)
-
-        return out, err
-
-    @staticmethod
     def rescan(target_nqn, vol_uuid):
         ctr_device = (
             NVMeOFConnector.get_search_path() +
             NVMeOFConnector.get_nvme_controller(target_nqn))
         nvme_command = ('ns-rescan', ctr_device)
         try:
-            NVMeOFConnector.run_nvme_cli(nvme_command)
+            priv_nvme.run_nvme_cli(nvme_command)
         except Exception as e:
             raise exception.CommandExecutionFailed(e, cmd=nvme_command)
 

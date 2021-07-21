@@ -78,3 +78,12 @@ def get_host_uuid():
         LOG.warning(
             "Could not get host uuid: %s" % str(e))
     return None
+
+
+@os_brick.privileged.default.entrypoint
+def run_nvme_cli(nvme_command):
+    out, err = rootwrap.custom_execute(
+        'nvme', *nvme_command, check_exit_code=True)
+    LOG.debug("nvme %(nvme_command)s: stdout=%(out)s stderr=%(err)s" %
+              {'nvme_command': nvme_command, 'out': out, 'err': err})
+    return out, err
