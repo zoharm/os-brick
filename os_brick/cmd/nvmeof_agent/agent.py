@@ -529,6 +529,8 @@ class NVMeOFAgent:
         for volume_replica in volume_replicas:
             backends = []
             LOG.debug("[!] volume_replica: %s", str(volume_replica))
+            if volume_replica.backend.persistentID == "":
+                continue
             result = self.prov_rest.get_backend_by_id(
                 volume_replica.backend.persistentID)
             if result.status == "Success":
@@ -630,6 +632,7 @@ class NVMeOFAgent:
                         added = self.add_device_to_md(md_name, path)
                         LOG.debug("[!] added: %s", str(added))
                     modified = False
+                    added_leg = path
                     # avoid growing if there are failed legs since it might
                     # get stuck
                     if added and len(devices) < len(volume_replicas) \
@@ -646,7 +649,7 @@ class NVMeOFAgent:
                             volume, added_replica_id, 'Synchronizing')
 
         LOG.debug("[!] handle_leg_added end with added = %s.", str(added))
-        return added
+        return added_leg, added
 
     def handle_terminating_leg(
             self,
@@ -948,15 +951,16 @@ class NVMeOFAgent:
                             break
                         try:
                             LOG.debug("[!] Call handle_leg_added...")
-                            added = self.handle_leg_added(
+                            added_leg, added = self.handle_leg_added(
                                 volume, md, md_details, failed_legs,
                                 host_id)
                         except Exception as ex:
                             LOG.error(
                                 "[!] handle_leg_added exception: %s",
                                 str(ex))
-                        LOG.debug("[!] added: %s", str(added))
-                        if added:
+                        LOG.debug("[!] added: %s, added_leg: %s", str(added),
+                                  added_leg)
+                        if added or added_leg != "":
                             deleted = self.delete_replica(volume,
                                                           location.uuid)
                             LOG.debug("[!] deleted : %s", str(deleted))
@@ -992,17 +996,19 @@ class NVMeOFAgent:
 
         prov_num_legs = len(volume.location)
         added = False
+        added_leg = ""
         LOG.debug("[!] md_details %s", str(md_details))
         if md_details['raid_devices'] < prov_num_legs \
                 or md_details['total_devices'] < prov_num_legs \
                 or md_details['failed_devices'] > 0:
             LOG.debug("[!] handle_leg_added ...")
             try:
-                added = self.handle_leg_added(
+                added_leg, added = self.handle_leg_added(
                     volume, md, md_details, failed_legs, host_id)
             except Exception as ex:
                 LOG.warning("[!] handle_leg_added Exception: %s", str(ex))
                 traceback.print_exc()
+        LOG.debug("[!] added: %s, added_leg: %s", str(added), added_leg)
         LOG.debug("[!] check_volume end ...")
         return added
 
