@@ -18,16 +18,17 @@ import sys
 import time
 import traceback
 
-import os_brick.cmd.nvmeof_agent.entities as provisioner_entities
-import os_brick.cmd.nvmeof_agent.rest_client as provisioner_rest_client
-import os_brick.initiator.connectors.nvmeof as nvmeof
-from os_brick.privileged import nvmeof as priv_nvme
-from os_brick.privileged import rootwrap as priv_rootwrap
 from oslo_concurrency import lockutils
 from oslo_concurrency import processutils as putils
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils.secretutils import md5
+
+import os_brick.cmd.nvmeof_agent.entities as provisioner_entities
+import os_brick.cmd.nvmeof_agent.rest_client as provisioner_rest_client
+import os_brick.initiator.connectors.nvmeof as nvmeof
+from os_brick.privileged import nvmeof as priv_nvme
+from os_brick.privileged import rootwrap as priv_rootwrap
 
 
 scheduler = sched.scheduler(time.time, time.sleep)

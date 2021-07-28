@@ -95,3 +95,42 @@ class PrivNVMeTestCase(base.TestCase):
                                             exist_ok=True)
         mock_exec.assert_called_once_with('nvme', 'show-hostnqn')
         self.assertEqual('', res)
+
+    @mock.patch.object(rootwrap, 'custom_execute')
+    def test_get_host_uuid(self, mock_execute):
+        mock_execute.return_value = 'fakeuuid', ''
+        self.assertEqual('fakeuuid', privsep_nvme.get_host_uuid())
+
+    @mock.patch.object(rootwrap, 'custom_execute')
+    def test_get_host_uuid_err(self, mock_execute):
+        mock_execute.side_effect = putils.ProcessExecutionError()
+        self.assertEqual(None, privsep_nvme.get_host_uuid())
+
+    @mock.patch.object(rootwrap, 'custom_execute')
+    def test_run_nvme_cli(self, mock_execute):
+        mock_execute.return_value = ("\n", "")
+        cmd = 'dummy command'
+        result = privsep_nvme.run_nvme_cli(cmd)
+        self.assertEqual(("\n", ""), result)
+
+    @mock.patch.object(rootwrap, 'custom_execute')
+    def test_run_mdadm(self, mock_execute):
+        mock_execute.return_value = "fakeuuid"
+        cmd = ['mdadm', '--examine', '/dev/nvme1']
+        result = privsep_nvme.run_mdadm(cmd)
+        self.assertEqual('fakeuuid', result)
+        args, kwargs = mock_execute.call_args
+        self.assertEqual(args[0], cmd[0])
+        self.assertEqual(args[1], cmd[1])
+        self.assertEqual(args[2], cmd[2])
+
+    @mock.patch.object(rootwrap, 'custom_execute')
+    def test_run_mdadm_err(self, mock_execute):
+        mock_execute.side_effect = putils.ProcessExecutionError()
+        cmd = ['mdadm', '--examine', '/dev/nvme1']
+        result = privsep_nvme.run_mdadm(cmd)
+        self.assertIsNone(result)
+        args, kwargs = mock_execute.call_args
+        self.assertEqual(args[0], cmd[0])
+        self.assertEqual(args[1], cmd[1])
+        self.assertEqual(args[2], cmd[2])
