@@ -104,7 +104,7 @@ class PrivNVMeTestCase(base.TestCase):
     @mock.patch.object(rootwrap, 'custom_execute')
     def test_get_host_uuid_err(self, mock_execute):
         mock_execute.side_effect = putils.ProcessExecutionError()
-        self.assertEqual(None, privsep_nvme.get_host_uuid())
+        self.assertIsNone(privsep_nvme.get_host_uuid())
 
     @mock.patch.object(rootwrap, 'custom_execute')
     def test_run_nvme_cli(self, mock_execute):
