@@ -43,7 +43,7 @@ class ConnectorUtilsTestCase(test_base.TestCase):
 
     @mock.patch.object(nvmeof.NVMeOFConnector, '_get_system_uuid',
                        return_value=None)
-    @mock.patch.object(nvmeof.NVMeOFConnector, '_get_host_uuid',
+    @mock.patch.object(nvmeof.priv_nvme, 'get_host_uuid',
                        return_value=None)
     @mock.patch.object(nvmeof.NVMeOFConnector, '_get_host_nqn',
                        return_value=None)
