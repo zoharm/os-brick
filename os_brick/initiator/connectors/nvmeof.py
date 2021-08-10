@@ -168,7 +168,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
                     "when running nvme list.")
             raise exception.CommandExecutionFailed(message=msg)
 
-    @utils.retry(exceptions=exception.VolumePathsNotFound)
+    @utils.retry(exception.VolumePathsNotFound)
     def _get_device_path(self, current_nvme_devices):
         all_nvme_devices = self._get_nvme_devices()
         LOG.debug("all_nvme_devices are %(all_nvme_devices)s",
@@ -178,7 +178,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
             raise exception.VolumePathsNotFound()
         return list(path)
 
-    @utils.retry(exceptions=putils.ProcessExecutionError)
+    @utils.retry(putils.ProcessExecutionError)
     def _try_connect_nvme(self, cmd):
         self._execute(*cmd, root_helper=self._root_helper,
                       run_as_root=True)
@@ -210,7 +210,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
 
         return ret_val
 
-    @utils.retry(exceptions=exception.NotFound, retries=5)
+    @utils.retry(exception.NotFound, retries=5)
     def _is_nvme_available(self, nvme_name):
         nvme_name_pattern = "/dev/%sn[0-9]+" % nvme_name
         for nvme_dev_name in self._get_nvme_devices():
@@ -585,7 +585,7 @@ class NVMeOFConnector(base.BaseLinuxConnector):
         raise exception.VolumeDeviceNotFound(device=target_nqn)
 
     @staticmethod
-    @utils.retry(exceptions=exception.VolumeDeviceNotFound, retries=5)
+    @utils.retry(exception.VolumeDeviceNotFound, retries=5)
     def get_nvme_device_path(target_nqn, vol_uuid):
         nvme_ctrl = NVMeOFConnector.get_nvme_controller(target_nqn)
         blocks = glob.glob(
